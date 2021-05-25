@@ -2,9 +2,18 @@
 Copyright 2019 The Microsoft DeepSpeed Team
 '''
 
+import os
 import torch
-from torch.distributed.distributed_c10d import _get_global_rank
+
 import torch.distributed as dist
+
+if os.getenv('DS_MOCK_DIST', '0') == "1":
+    #import deepspeed.runtime.mock_dist as dist
+    #torch.distributed = dist
+    from deepspeed.runtime.mock_dist import _get_global_rank
+else:
+    from torch.distributed.distributed_c10d import _get_global_rank
+
 import math
 from torch._six import inf
 from torch.autograd import Variable

@@ -5,6 +5,9 @@ import torch
 import deepspeed
 from torch.utils.data.distributed import DistributedSampler
 
+import deepspeed.runtime.mock_dist as my_dist
+torch.distributed = my_dist
+
 
 class SimpleModel(torch.nn.Module):
     def __init__(self, hidden_dim, empty_grad=False):
@@ -34,7 +37,7 @@ def get_data_loader(model, total_samples, hidden_dim, device):
                               dtype=torch.long,
                               device=device).random_(hidden_dim)
     train_dataset = torch.utils.data.TensorDataset(train_data, train_label)
-    sampler = DistributedSampler(train_dataset)
+    sampler = None  #DistributedSampler(train_dataset)
     train_loader = torch.utils.data.DataLoader(train_dataset,
                                                batch_size=batch_size,
                                                sampler=sampler)
@@ -79,7 +82,10 @@ config_dict = {
     },
     "zero_optimization": {
         "stage": 0,
-        "reduce_bucket_size": 20
+        "reduce_bucket_size": 20,
+        "offload_optimizer": {
+            "device": "cpu"
+        }
     }
 }
 #        "initial_scale_power": 15
@@ -90,8 +96,8 @@ model = SimpleModel(hidden_dim, empty_grad=False)
 
 model, _, _,_ = deepspeed.initialize(args=args,
                                      model=model,
-                                     model_parameters=model.parameters(),
-                                     dist_init_required=True)
+                                     model_parameters=model.parameters()) #,
+#dist_init_required=False)
 
 
 def print_params(tag, model):

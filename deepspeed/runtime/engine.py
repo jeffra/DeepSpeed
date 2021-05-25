@@ -8,7 +8,13 @@ import math
 import torch
 import warnings
 import hashlib
-import torch.distributed as dist
+
+if os.getenv('DS_MOCK_DIST', '0') == "1":
+    import deepspeed.runtime.mock_dist as dist
+    torch.distributed = dist
+else:
+    import torch.distributed as dist
+
 from collections import OrderedDict
 from shutil import copyfile
 
@@ -129,8 +135,12 @@ class DeepSpeedEngine(Module):
         if dist_init_required is None:
             dist_init_required = not dist.is_initialized()
 
+        self.single_gpu = False
         if dist_init_required is False:
-            assert dist.is_initialized() is True, "Torch distributed not initialized. Please set dist_init_required to True or initialize before calling deepspeed.initialize()"
+            devices = os.getenv('CUDA_VISIBLE_DEVICES', '0').split(',')
+            if len(devices) > 1:
+                assert dist.is_initialized() is True, "Torch distributed not initialized. Please set dist_init_required to True or initialize before calling deepspeed.initialize()"
+            self.single_gpu = True
         else:
             # Initialize torch distributed if needed
             init_distributed(dist_backend=self.dist_backend)
